@@ -67,209 +67,150 @@ void howToUse()
   return;
 }
 
-void signup(const string &name, const string &username, const string &email, const string &password)
+// ENCRYPTION AND DECRYPTION USING CAESAR CYPHER
+
+string encryptCaesarCipher(const string &password, int shift)
 {
+  string encryptedPassword = password;
 
-  try
+  for (char &character : encryptedPassword)
   {
-    ofstream file("userdetails.csv", ios::app);
-    if (!file.is_open())
+    if (isalpha(character))
     {
-      throw runtime_error("Error opening userdetails.csv file");
+      char base = isupper(character) ? 'A' : 'a';
+      character = (character - base + shift) % 26 + base;
     }
-
-    string pass=encryptCaesarCipher(password, 5);
-
-    file << username << "," << name << "," << email << "," << pass << endl;
-
-    if (file.fail())
-    {
-      throw runtime_error("Error writing to userdetails.csv");
-    }
-
-    file.close();
-
-    cout << "Data stored successfully in userdetails.csv" << endl;
   }
-  catch (const exception &e)
-  {
-    cout << "Error: " << string(e.what()) << endl;
-  }
-  return;
+
+  return encryptedPassword;
 }
 
-void login(const string &username, const string &password)
+string decryptCaesarCipher(const string &encryptedPassword, int shift)
 {
-
-  ifstream file("userdetails.csv");
-  if (!file.is_open())
-  {
-    throw runtime_error("Error opening userdetails.csv");
-  }
-
-  string line;
-  while (getline(file, line))
-  {
-    istringstream iss(line);
-    string uname, usrname, mail, pwd;
-
-    if (getline(iss, uname, ',') &&
-        getline(iss, usrname, ',') &&
-        getline(iss, mail, ',') &&
-        getline(iss, pwd, ','))
-    {
-      pwd = decryptCaesarCipher(pwd, 5);
-
-      if (usrname == username && pwd == password)
-      {
-        cout << "Login successful. Welcome, " << uname << "!" << endl;
-        dashboard(uname);
-      }
-    }
-  }
-
-  cout << "User does not exist. Please sign up first." << endl;
-  return;
+  return encryptCaesarCipher(encryptedPassword, 26 - shift);
 }
-
-
-//ENCRYPTION AND DECRYPTION USING CAESAR CYPHER
-
-string encryptCaesarCipher(const string& password, int shift) {
-    string encryptedPassword = password;
-
-    for (char& character : encryptedPassword) {
-        if (isalpha(character)) {
-            char base = isupper(character) ? 'A' : 'a';
-            character = (character - base + shift) % 26 + base;
-        }
-    }
-
-    return encryptedPassword;
-}
-
-string decryptCaesarCipher(const std::string& encryptedPassword, int shift) {
-    return encryptCaesarCipher(encryptedPassword, 26 - shift);
-}
-
 
 // STORING THE PASSWORDS ENTERED BY THE USER
 
 struct PasswordEntry
 {
-    string website;
-    string username;
-    string password;
+  string website;
+  string username;
+  string password;
 };
 
 vector<PasswordEntry> passwordDatabase;
 
-void addPasswordEntry(const string &website, const string &username, const string &password)
+void saveToCSV(const string &loggeduser, const vector<PasswordEntry> &entries)
 {
-    PasswordEntry entry = {website, username, password};
-    passwordDatabase.push_back(entry);
-    saveToCSV(username, passwordDatabase);
+  ofstream file(loggeduser + "_data.csv");
+  if (!file.is_open())
+  {
+    cout << "Error opening " << loggeduser << " database for writing." << endl;
+    return;
+  }
+
+  for (const auto &entry : entries)
+  {
+    file << entry.website << "," << entry.username << "," << entry.password << "\n";
+  }
+
+  file.close();
 }
 
-void viewPasswordEntries(const string &website, const string &username)
+vector<PasswordEntry> readFromCSV(const string &loggeduser)
 {
-    vector<PasswordEntry> userEntries = readFromCSV(username);
-    for (const auto &entry : userEntries)
-    {
-        if (entry.website == website)
-        {
-            cout << "Website: " << entry.website << "\n";
-            cout << "Username: " << entry.username << "\n";
-            cout << "Password: " << entry.password << "\n\n";
-        }
-    }
-}
-
-void updatePasswordEntry(const string &website, const string &newPassword, const string &username)
-{
-    vector<PasswordEntry> userEntries = readFromCSV(username);
-    for (auto &entry : userEntries)
-    {
-        if (entry.website == website)
-        {
-            entry.password = newPassword;
-            saveToCSV(username, userEntries);
-            return;
-        }
-    }
-}
-
-void deletePasswordEntry(const string &website, const string &username)
-{
-    vector<PasswordEntry> userEntries = readFromCSV(username);
-    userEntries.erase(remove_if(userEntries.begin(),
-                                userEntries.end(),
-                                [website](const PasswordEntry &entry)
-                                { return entry.website == website; }),
-                      userEntries.end());
-    saveToCSV(username, userEntries);
-}
-
-void saveToCSV(const string &username, const vector<PasswordEntry> &entries)
-{
-    ofstream file(username + "_data.csv");
-    if (!file.is_open())
-    {
-        cout << "Error opening " << username << "_userdetails.csv for writing." << endl;
-        return;
-    }
-
-    for (const auto &entry : entries)
-    {
-        file << entry.website << "," << entry.username << "," << entry.password << "\n";
-    }
-
-    file.close();
-}
-
-vector<PasswordEntry> readFromCSV(const string &username)
-{
-    vector<PasswordEntry> userEntries;
-    ifstream file(username + "_data.csv");
-    if (!file.is_open())
-    {
-        cout << "Error opening " << username << "_data.csv for reading." << endl;
-        return userEntries;
-    }
-
-    string line;
-    while (getline(file, line))
-    {
-        stringstream ss(line);
-        string website, uname, pwd;
-        getline(ss, website, ',');
-        getline(ss, uname, ',');
-        getline(ss, pwd, ',');
-        PasswordEntry entry = {website, uname, pwd};
-        userEntries.push_back(entry);
-    }
-
-    file.close();
+  vector<PasswordEntry> userEntries;
+  ifstream file(loggeduser + "_data.csv");
+  if (!file.is_open())
+  {
+    cout << "Error opening " << loggeduser << " database for reading." << endl;
     return userEntries;
+  }
+
+  string line;
+  while (getline(file, line))
+  {
+    stringstream ss(line);
+    string website, uname, pwd;
+    getline(ss, website, ',');
+    getline(ss, uname, ',');
+    getline(ss, pwd, ',');
+    PasswordEntry entry = {website, uname, pwd};
+    userEntries.push_back(entry);
+  }
+
+  file.close();
+  return userEntries;
 }
 
+void addPasswordEntry(const string &loggeduser, const string &website, const string &username, const string &password)
+{
+  string pass = encryptCaesarCipher(password, 5);
+  PasswordEntry entry = {website, username, pass};
+  passwordDatabase.push_back(entry);
+  saveToCSV(loggeduser, passwordDatabase);
+}
 
+void viewPasswordEntries(const string &loggeduser, const string &website, const string &username)
+{
+  vector<PasswordEntry> userEntries = readFromCSV(loggeduser);
+  string pass;
+  int flag=0;
+  for (const auto &entry : userEntries)
+  {
+    if (entry.website == website)
+    {
+      cout << "Website: " << entry.website << "\n";
+      cout << "Username: " << entry.username << "\n";
+      pass = decryptCaesarCipher(entry.password, 5);
+      cout << "Password: " << pass << "\n\n";
+      flag+=1;
+    }
+  }
+  if (flag==0){
+    cout<<"The entry of the website named "<<website<<" not found!"<<endl;
+  }
+}
 
+void updatePasswordEntry(const string &loggeduser, const string &website, const string &newPassword, const string &username)
+{
+  vector<PasswordEntry> userEntries = readFromCSV(loggeduser);
+  for (auto &entry : userEntries)
+  {
+    if (entry.website == website)
+    {
+      entry.password = encryptCaesarCipher(newPassword, 5);
+      saveToCSV(loggeduser, userEntries);
+      return;
+    }
+  }
+}
+
+void deletePasswordEntry(const string &loggeduser, const string &website, const string &username)
+{
+  vector<PasswordEntry> userEntries = readFromCSV(username);
+  userEntries.erase(remove_if(userEntries.begin(),
+                              userEntries.end(),
+                              [website](const PasswordEntry &entry)
+                              { return entry.website == website; }),
+                    userEntries.end());
+  saveToCSV(username, userEntries);
+}
 
 // frontend of the application
-void dashboard(string loggeduser)
+void dashboard(string loggedUser)
 {
-
   int choice;
   string website, username, password;
-
   string response = "yes";
+  string loggeduser = loggedUser;
 
   while (response == "yes" || response == "YES" || response == "sure" || response == "y")
   {
 
     cout << endl
-         << "==========================================" << endl;
+         << "==========================================================" << endl;
     cout << "\t ** ____ PASSWORD MANAGER ____ **" << endl;
     cout << "\t\t1. Add password" << endl;
     cout << "\t\t2. View password" << endl;
@@ -278,8 +219,7 @@ void dashboard(string loggeduser)
     cout << "\t\t5. Exit" << endl;
     cout << "\t\t111. About this application" << endl;
     cout << "\t\t222. How to use this application" << endl;
-
-    cout << "==========================================" << endl
+    cout << "==========================================================" << endl
          << endl;
 
     cout << ">> Enter your choice: ";
@@ -290,7 +230,8 @@ void dashboard(string loggeduser)
 
     string encryptPwd;
 
-    switch (choice){
+    switch (choice)
+    {
 
     case 1:
       cout << ">> Enter website: ";
@@ -300,13 +241,13 @@ void dashboard(string loggeduser)
       cout << ">> Enter password: ";
       cin >> password;
       encryptPwd = encryptCaesarCipher(password, 5);
-      addPasswordEntry(website, username, encryptPwd);
+      addPasswordEntry(loggeduser, website, username, encryptPwd);
       break;
 
     case 2:
       cout << ">> Enter website: ";
       cin >> website;
-      viewPasswordEntries(website, username);
+      viewPasswordEntries(loggeduser, website, username);
       break;
 
     case 3:
@@ -314,13 +255,13 @@ void dashboard(string loggeduser)
       cin >> website;
       cout << ">> Enter new password: ";
       cin >> password;
-      updatePasswordEntry(website, password, username);
+      updatePasswordEntry(loggeduser, website, password, username);
       break;
 
     case 4:
       cout << ">> Enter website: ";
       cin >> website;
-      deletePasswordEntry(website, username);
+      deletePasswordEntry(loggeduser, website, username);
       break;
 
     case 5:
@@ -347,11 +288,75 @@ void dashboard(string loggeduser)
     cin >> response;
     cout << "------------------------------------------" << endl;
   }
-  cout << "Successfully logged out!" << endl;
+  cout << "Successfully logged out from "<< loggedUser <<" account!" << endl;
 
   return;
 }
 
+void signup(const string &name, const string &username, const string &email, const string &password)
+{
+
+  try
+  {
+    ofstream file("userdetails.csv", ios::app);
+    if (!file.is_open())
+    {
+      throw runtime_error("Error opening the database");
+    }
+
+    string pass = encryptCaesarCipher(password, 5);
+
+    file << username << "," << name << "," << email << "," << pass << endl;
+
+    if (file.fail())
+    {
+      throw runtime_error("Error writing in the database");
+    }
+
+    file.close();
+
+    cout << "Data stored successfully in the database" << endl;
+  }
+  catch (const exception &e)
+  {
+    cout << "Error: " << string(e.what()) << endl;
+  }
+  return;
+}
+
+void login(const string &username, const string &password)
+{
+
+  ifstream file("userdetails.csv");
+  if (!file.is_open())
+  {
+    throw runtime_error("Error opening the database");
+  }
+
+  string line;
+  while (getline(file, line))
+  {
+    istringstream iss(line);
+    string uname, usrname, mail, pwd;
+
+    if (getline(iss, uname, ',') &&
+        getline(iss, usrname, ',') &&
+        getline(iss, mail, ',') &&
+        getline(iss, pwd, ','))
+    {
+      pwd = decryptCaesarCipher(pwd, 5);
+
+      if (usrname == username && pwd == password)
+      {
+        cout << "Login successful. Welcome, " << uname << "!" << endl;
+        dashboard(uname);
+      }
+    }
+  }
+
+  cout << "User does not exist. Please sign up first." << endl;
+  return;
+}
 
 int main()
 {
